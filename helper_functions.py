@@ -71,9 +71,47 @@ def neighbor_joining(distances: np.ndarray, labels: list) -> Node:
 
     """
     
-    self.tree = Node()
+    #self.tree = Node()
 
-    raise NotImplementedError()
+    D = np.array(distances, dtype=float)
+    
+    # Every label starts as a leaf: a Node with no children
+    nodes = [Node(label, None, 0, None, 0) for label in labels]
+    counter = 0
+    
+    while len(nodes) > 2:
+        n = len(nodes)
+    
+        # Step 1: Q matrix. r[i] = total distance from i to all others
+        r = D.sum(axis=1)
+        Q = (n - 2) * D - r[:, None] - r[None, :]
+        np.fill_diagonal(Q, np.inf)  # never join a node with itself
+    
+        # Step 2: pair with the smallest Q (np.argmin picks the first on ties, as the docstring asks)
+        i, j = np.unravel_index(np.argmin(Q), Q.shape)
+        if i > j:
+            i, j = j, i
+    
+        # Step 3: branch lengths from i and j to their new parent
+        dist_i = D[i, j] / 2 + (r[i] - r[j]) / (2 * (n - 2))
+        dist_j = D[i, j] - dist_i
+    
+        counter += 1
+        new_node = Node(f"node_{counter}", nodes[i], dist_i, nodes[j], dist_j)
+    
+        # Step 4: distances from the new node to every remaining node
+        new_row = (D[i, :] + D[j, :] - D[i, j]) / 2
+        keep = [k for k in range(n) if k not in (i, j)]
+        new_row = new_row[keep]
+    
+        # Remove i and j, then add the new node at the END of the matrix and list
+        D = D[np.ix_(keep, keep)]
+        D = np.vstack([np.column_stack([D, new_row]), np.append(new_row, 0.0)])
+        nodes = [nodes[k] for k in keep] + [new_node]
+    
+    # Step 5: join the last two under the root, half the distance each
+    half = D[0, 1] / 2
+    return Node("ROOT", nodes[0], half, nodes[1], half)
 
 
 def plot_nj_tree(tree: Node, ax: Axes = None, **kwargs) -> None:
