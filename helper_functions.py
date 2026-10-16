@@ -138,6 +138,50 @@ def plot_nj_tree(tree: Node, ax: Axes = None, **kwargs) -> None:
 
     """
 
+    import matplotlib.pyplot as plt
+    if ax is None:
+        ax = plt.gca()
+
+    # Optional extras (the function still works without them; used for Problem 3 colours)
+    leaf_colors = kwargs.get("leaf_colors", {})  # e.g. {"A": "tab:red"}
+    fontsize = kwargs.get("fontsize", 12)
+    line_color = kwargs.get("line_color", "k")
+
+    next_leaf_y = [0]  # leaves get y = 0, 1, 2, ... from the bottom up
+
+    def draw(node, x):
+        """Draw the subtree under `node`, whose x position is `x`. Returns its y."""
+        # Leaf: place it at the next free y and label it
+        if node.left is None and node.right is None:
+            y = next_leaf_y[0]
+            next_leaf_y[0] += 1
+            ax.text(x, y, f"  {node.name}", fontsize=fontsize, verticalalignment="center",
+                    color=leaf_colors.get(node.name, "k"))
+            return y
+
+        # Internal node: draw both children first, further right by their branch lengths
+        x_left = x + node.left_distance
+        x_right = x + node.right_distance
+        y_left = draw(node.left, x_left)
+        y_right = draw(node.right, x_right)
+
+        # Horizontal branches: from this node out to each child, at the child's height
+        ax.plot([x, x_left], [y_left, y_left], color=line_color, lw=1.5)
+        ax.plot([x, x_right], [y_right, y_right], color=line_color, lw=1.5)
+        # Vertical line joining the two children at this node's position
+        ax.plot([x, x], [y_left, y_right], color=line_color, lw=1.5)
+
+        # Bootstrap confidence (only shown if the bonus is done)
+        if node.confidence is not None:
+            ax.text(x, (y_left + y_right) / 2, f"{node.confidence:.2f} ", fontsize=fontsize - 3,
+                    ha="right", va="bottom", color="tab:blue")
+        return (y_left + y_right) / 2  # this node sits halfway between its children
+
+    root_y = draw(tree, 0)
+    ax.plot([-0.2, 0], [root_y, root_y], color=line_color, lw=1.5)  # short stub for the root
+
+    for loc in ["top", "right"]:
+        ax.spines[loc].set_visible(False)
     return ax
 
 
